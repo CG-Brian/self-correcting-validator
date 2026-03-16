@@ -138,7 +138,7 @@ Repeat until valid or max attempts reached
 
 #### Validation Issue
 
-* ```contact_phone``` should be digits only
+- `contact_phone` should be digits only
 
 #### Revised / Normalized Output:
 ```
@@ -180,4 +180,100 @@ self-correcting-validator/
 └─ README.md
 ```
 
+---
+
+## Notebook Demo
+
+The notebook in `notebooks/00_quickstart_demo.ipynb` is intended as a quick walkthrough of the system:
+
+1. schema sanity check
+2. rule-based validation without LLM
+3. self-correcting extraction loop
+4. LangGraph workflow version
+5. evaluation examples
+
+The notebook is a **demo layer**, while the actual project logic lives in `src/`.
+
+---
+
+## Evaluation
+
+This project includes a small evaluation pipeline to inspect:
+
+- pass/fail rate
+- number of attempts required
+- common validation error types
+- failure cases after max retries
+
+Example questions this evaluation helps answer:
+
+- How often does the first extraction pass validation?
+- How much does self-correction improve final success rate?
+- What kinds of errors are most common?
+
+---
+
+## What This Project Demonstrates
+
+This project is less about building a large production system and more about demonstrating a design pattern for LLM output reliability.
+
+Key ideas:
+
+- strict structured output contracts
+- deterministic validation before downstream use
+- separating generation from validation
+- retrying based on explicit errors rather than vague prompts
+- representing the workflow as both a loop and a graph
+
+---
+
+## Limitations
+
+Current limitations include:
+
+- small-scale evaluation
+- prompt-based correction rather than fine-tuned correction
+- simple business rules
+- no confidence scoring or human-in-the-loop review yet
+
+These are intentional tradeoffs for a lightweight side project focused on clarity and system design.
+
+---
+
+## Future Improvements
+
+Possible next steps:
+
+- add stronger evaluation with labeled cases
+- compare first-pass vs corrected pass rates more formally
+- add confidence estimation / routing
+- support multilingual complaint intake
+- connect the output to a downstream dashboard or CRM mock workflow
+
+---
+
+Tech Stack
+
+- Python
+- Pydantic
+- OpenAI API
+- LangGraph
+- Streamlit
+
+---
+
+Takeaway
+
+This project started from a simple question:
+
+**How do you make LLM-generated structured outputs safer to use in real workflows?**
+
+My answer here was to combine:
+
+- schema enforcement
+- deterministic validation
+- error-guided retry
+- explicit orchestration
+
+into a small but practical self-correcting pipeline.
 
