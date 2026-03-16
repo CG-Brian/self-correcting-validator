@@ -252,6 +252,22 @@ Possible next steps:
 
 ---
 
+## Running the Demo
+
+Install dependencies:
+
+`pip install -r requirements.txt`
+
+Add your API key:
+
+`OPENAI_API_KEY=...`
+
+Then run the Streamlit demo:
+
+`streamlit run app/streamlit_app.py`
+
+---
+
 Tech Stack
 
 - Python
