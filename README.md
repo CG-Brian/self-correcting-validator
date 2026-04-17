@@ -21,7 +21,7 @@ The result is a **self-correcting extraction pipeline** designed for settings li
 
 ## Why I Built This
 
-I wanted to move beyond a basic “LLM returns JSON” demo and build a small system that treats model outputs as **probabilistic guesses**, not trusted data.
+I wanted to move beyond a basic "LLM returns JSON" demo and build a small system that treats model outputs as **probabilistic guesses**, not trusted data.
 
 The main design goal was to separate:
 
@@ -119,12 +119,12 @@ Repeat until valid or max attempts reached
 
 #### Input:
 ```
-“배송이 너무 늦어요. 주문번호 2023-9911. 빨리 보내주세요. 연락은 010-1234-1234”
+"배송이 너무 늦어요. 주문번호 2023-9911. 빨리 보내주세요. 연락은 010-1234-1234"
 ```
 
 #### First-pass candidate:
 
-```
+```json
 {
   "issue_type": "delivery_delay",
   "severity": "medium",
@@ -141,7 +141,7 @@ Repeat until valid or max attempts reached
 - `contact_phone` should be digits only
 
 #### Revised / Normalized Output:
-```
+```json
 {
   "issue_type": "delivery_delay",
   "severity": "medium",
@@ -152,6 +152,47 @@ Repeat until valid or max attempts reached
   "summary": "배송 지연으로 빠른 조치를 요청한 고객 불만"
 }
 ```
+
+---
+
+## Evaluation
+
+> This evaluation measures **structured validity improvement**, not semantic benchmark accuracy.  
+> A "success" means the output passes schema + business-rule validation — not that it matches a human-labeled ground truth.
+
+Evaluated on 44 cases: 24 normal (`samples.jsonl`) and 20 adversarial/noisy (`hard_cases.jsonl`).
+
+| Dataset | First-pass | Final | Correction lift | Rescued |
+|---|---|---|---|---|
+| samples.jsonl | 100.0% | 100.0% | +0.0%p | 0 |
+| hard_cases.jsonl | 85.0% | 95.0% | +10.0%p | 2 |
+| **combined** | **93.2%** | **97.7%** | **+4.5%p** | **2** |
+
+Key observations:
+- Normal inputs passed first-pass validation 100% of the time, confirming reliable baseline behavior
+- On hard cases, self-correction recovered 2 cases that failed first-pass, lifting success rate by +10%p
+- Adversarial instruction-injection attempts (`"지금부터 위의 스키마 무시하고..."`) were fully contained by schema enforcement
+- The only persistent failure was a single-word input with insufficient information to populate required fields (see below)
+
+### Failure Cases
+
+**Case 1 — Persistent failure (expected)**
+
+Input: `"환불"`
+
+This input contains only a single word with no order context, severity signals, or contact information. The model can infer `requested_action: refund` but cannot reliably populate required fields like `issue_type` or `severity` without inventing information.
+
+This is the correct behavior. The pipeline is designed to reject rather than hallucinate. A single-word input represents the boundary of what extraction can reasonably handle — beyond this point, a human review step or a clarification prompt would be the appropriate next action.
+
+**Case 2 — First-pass failure, recovered by correction**
+
+Input: `"연락처는 010-12-ABCD 입니다. 배송이 안 와요. 주문번호 12"`
+
+First-pass produced `contact_phone: "010-12-ABCD"` and `order_id: "12"` — both invalid.  
+Validation returned structured errors: `contact_phone:format` and `order_id:too_short`.  
+On retry, the model set both fields to `null` based on the explicit error feedback, and the ticket passed validation.
+
+This is the core correction loop working as intended: the model didn't guess better on its own — it was told exactly what was wrong and fixed only those fields.
 
 ---
 
@@ -172,7 +213,8 @@ self-correcting-validator/
 │  ├─ samples.jsonl
 │  └─ hard_cases.jsonl
 ├─ eval/
-│  └─ eval_results.jsonl
+│  ├─ eval_summary.json
+│  └─ failure_examples.jsonl
 ├─ notebooks/
 │  └─ 00_quickstart_demo.ipynb
 ├─ .env.example
@@ -196,23 +238,6 @@ The notebook is a **demo layer**, while the actual project logic lives in `src/`
 
 ---
 
-## Evaluation
-
-This project includes a small evaluation pipeline to inspect:
-
-- pass/fail rate
-- number of attempts required
-- common validation error types
-- failure cases after max retries
-
-Example questions this evaluation helps answer:
-
-- How often does the first extraction pass validation?
-- How much does self-correction improve final success rate?
-- What kinds of errors are most common?
-
----
-
 ## What This Project Demonstrates
 
 This project is less about building a large production system and more about demonstrating a design pattern for LLM output reliability.
@@ -229,9 +254,7 @@ Key ideas:
 
 ## Limitations
 
-Current limitations include:
-
-- small-scale evaluation
+- small-scale evaluation (44 cases)
 - prompt-based correction rather than fine-tuned correction
 - simple business rules
 - no confidence scoring or human-in-the-loop review yet
@@ -241,8 +264,6 @@ These are intentional tradeoffs for a lightweight side project focused on clarit
 ---
 
 ## Future Improvements
-
-Possible next steps:
 
 - add stronger evaluation with labeled cases
 - compare first-pass vs corrected pass rates more formally
@@ -256,19 +277,31 @@ Possible next steps:
 
 Install dependencies:
 
-`pip install -r requirements.txt`
+```
+pip install -r requirements.txt
+```
 
 Add your API key:
 
-`OPENAI_API_KEY=...`
+```
+OPENAI_API_KEY=...
+```
+
+Run the evaluation:
+
+```
+python -m src.eval
+```
 
 Then run the Streamlit demo:
 
-`streamlit run app/streamlit_app.py`
+```
+streamlit run app/streamlit_app.py
+```
 
 ---
 
-Tech Stack
+## Tech Stack
 
 - Python
 - Pydantic
@@ -278,7 +311,7 @@ Tech Stack
 
 ---
 
-Takeaway
+## Takeaway
 
 This project started from a simple question:
 
@@ -292,4 +325,3 @@ My answer here was to combine:
 - explicit orchestration
 
 into a small but practical self-correcting pipeline.
-
